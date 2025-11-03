@@ -1,0 +1,108 @@
+#include <Servo.h>
+
+#define PIN_SERVO 10
+#define ATTACH_MIN_US 300
+#define ATTACH_MAX_US 2600
+#define DUTY_MIN_US 300
+#define DUTY_MAX_US 2600
+
+static inline int angleToUS(float deg) {
+  if (deg < 0) deg = 0;
+  if (deg > 180) deg = 180;
+  float us = DUTY_MIN_US + (deg / 180.0f) * (DUTY_MAX_US - DUTY_MIN_US);
+  return (int)us;
+}
+
+const unsigned long SERVO_DT  = 20;
+const unsigned long P1_DUR_MS = 60UL * 1000UL;
+const float P1_START_DEG = 0.0f;
+const float P1_END_DEG   = 180.0f;
+
+const float P2_SPEED_DPS  = 0.3f;
+const float P2_START_DEG  = 45.0f;
+const float P2_END_DEG    = 135.0f;
+const unsigned long P2_DUR_MS =
+  (unsigned long)(((P2_END_DEG - P2_START_DEG) / P2_SPEED_DPS) * 1000.0f);
+
+const unsigned long PAUSE_MS = 2000;
+
+Servo myservo;
+
+enum Phase {
+  P1_INIT, P1_RUN, P1_DONE,
+  PAUSE_BETWEEN,
+  P2_INIT, P2_RUN, P2_DONE
+};
+
+Phase phase = P1_INIT;
+
+float pos_deg = 0.0f;
+unsigned long t_start = 0;
+unsigned long lastServo = 0;
+
+void setup() {
+  myservo.attach(PIN_SERVO, ATTACH_MIN_US, ATTACH_MAX_US);
+  pos_deg = P1_START_DEG;
+  myservo.writeMicroseconds(angleToUS(pos_deg));
+}
+
+static void updateLerp(float startDeg, float endDeg, unsigned long durMs) {
+  unsigned long now = millis();
+  if (now - lastServo < SERVO_DT) return;
+  lastServo = now;
+  float frac = (float)(now - t_start) / (float)durMs;
+  if (frac < 0) frac = 0;
+  if (frac > 1) frac = 1;
+  pos_deg = startDeg + (endDeg - startDeg) * frac;
+  myservo.writeMicroseconds(angleToUS(pos_deg));
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  switch (phase) {
+    case P1_INIT:
+      t_start = lastServo = now;
+      pos_deg = P1_START_DEG;
+      myservo.writeMicroseconds(angleToUS(pos_deg));
+      phase = P1_RUN;
+      break;
+
+    case P1_RUN:
+      updateLerp(P1_START_DEG, P1_END_DEG, P1_DUR_MS);
+      if (now - t_start >= P1_DUR_MS) {
+        pos_deg = P1_END_DEG;
+        myservo.writeMicroseconds(angleToUS(pos_deg));
+        t_start = now;
+        phase = P1_DONE;
+      }
+      break;
+
+    case P1_DONE:
+      if (now - t_start >= PAUSE_MS) phase = PAUSE_BETWEEN;
+      break;
+
+    case PAUSE_BETWEEN:
+      phase = P2_INIT;
+      break;
+
+    case P2_INIT:
+      t_start = lastServo = now;
+      pos_deg = P2_START_DEG;
+      myservo.writeMicroseconds(angleToUS(pos_deg));
+      phase = P2_RUN;
+      break;
+
+    case P2_RUN:
+      updateLerp(P2_START_DEG, P2_END_DEG, P2_DUR_MS);
+      if (now - t_start >= P2_DUR_MS) {
+        pos_deg = P2_END_DEG;
+        myservo.writeMicroseconds(angleToUS(pos_deg));
+        phase = P2_DONE;
+      }
+      break;
+
+    case P2_DONE:
+      break;
+  }
+}
