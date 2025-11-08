@@ -1,0 +1,84 @@
+
+#include <Servo.h>
+
+#define PIN_IR A0
+#define PIN_LED 9
+#define PIN_SERVO 10
+
+#define _DUTY_MIN 300
+#define _DUTY_NEU 1500
+#define _DUTY_MAX 2600
+
+#define _DIST_MIN 100.0
+#define _DIST_MAX 250.0
+
+#define EMA_ALPHA 0.2
+
+Servo myservo;
+
+unsigned long last_ms = 0;
+const unsigned long INTERVAL_MS = 20;
+
+double dist_ema = NAN;
+
+double toDistanceMM(int a_value) {
+  if (a_value <= 9) return NAN;
+  double d = (6762.0 / (a_value - 9.0) - 4.0) * 10.0 - 60.0;
+  if (d < 0.0) return NAN;
+  return d;
+}
+
+int distanceToDuty(double d_mm) {
+  if (d_mm < _DIST_MIN) d_mm = _DIST_MIN;
+  if (d_mm > _DIST_MAX) d_mm = _DIST_MAX;
+  double ratio = (d_mm - _DIST_MIN) / (_DIST_MAX - _DIST_MIN);
+  int duty = (int)(_DUTY_MIN + ratio * (double)(_DUTY_MAX - _DUTY_MIN));
+  if (duty < _DUTY_MIN) duty = _DUTY_MIN;
+  if (duty > _DUTY_MAX) duty = _DUTY_MAX;
+  return duty;
+}
+
+void setup() {
+  Serial.begin(1000000);
+  pinMode(PIN_LED, OUTPUT);
+  myservo.attach(PIN_SERVO);
+  myservo.writeMicroseconds(_DUTY_NEU);
+}
+
+void loop() {
+  if (millis() - last_ms < INTERVAL_MS) return;
+  last_ms = millis();
+
+  int a_value = analogRead(PIN_IR);
+  double dist_raw = toDistanceMM(a_value);
+
+  if (!isnan(dist_raw)) {
+    if (isnan(dist_ema)) dist_ema = dist_raw;
+    else dist_ema = EMA_ALPHA * dist_raw + (1.0 - EMA_ALPHA) * dist_ema;
+  }
+
+  double d_for_ctrl = isnan(dist_ema) ? dist_raw : dist_ema;
+  int duty;
+  if (isnan(d_for_ctrl)) {
+    duty = _DUTY_NEU;
+  } else {
+    duty = distanceToDuty(d_for_ctrl);
+  }
+  myservo.writeMicroseconds(duty);
+
+  bool in_range = (!isnan(d_for_ctrl)) && (d_for_ctrl >= _DIST_MIN) && (d_for_ctrl <= _DIST_MAX);
+  digitalWrite(PIN_LED, in_range ? HIGH : LOW);
+
+  double dist_raw_out = isnan(dist_raw) ? -1.0 : dist_raw;
+  double dist_ema_out = isnan(dist_ema) ? -1.0 : dist_ema;
+
+  Serial.print("_DUTY_MIN:"); Serial.print(_DUTY_MIN);
+  Serial.print(",_DIST_MIN:"); Serial.print(_DIST_MIN);
+  Serial.print(",IR:"); Serial.print(a_value);
+  Serial.print(",dist_raw:"); Serial.print(dist_raw_out);
+  Serial.print(",ema:"); Serial.print(dist_ema_out);
+  Serial.print(",servo:"); Serial.print(duty);
+  Serial.print(",_DIST_MAX:"); Serial.print(_DIST_MAX);
+  Serial.print(",_DUTY_MAX:"); Serial.print(_DUTY_MAX);
+  Serial.println("");
+}
