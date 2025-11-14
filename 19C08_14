@@ -1,0 +1,54 @@
+시간 복잡도: 
+
+시간 복잡도는 입력 크기가 커질수록 알고리즘이 얼마나 오래 걸리는지를 보는 개념.
+실제로 몇 초 걸리냐가 아니라 반복문이 몇 번, 연산이 몇 번 걸리는지를 기준으로 봄.
+
+예를 들어,
+한 번만 계산하면 O(1), for 문이 한 번 돌면 O(n), 이중 for 문이면 O(n²)라고 부름.
+
+공간 복잡도:
+
+공간 복잡도는 알고리즘을 실행할 떄 추가로 얼마나 많은 메모리를 쓰는지 입력 크기와 함께 보는 개념.
+예를 들어,
+크기가 n인 배열 하나를 쓰면 O(n) 공간, 그냥 변수 몇 개만 쓰면 O(1) 공간이라고 부름.
+
+시간 복잡도 분석
+
+for (i = 0; i < n; i++) {
+    ir_val[i] = analogRead(PIN_IR);
+    // (verbose == 1일 때 Serial.print)
+}
+
+n번 반복하면서 적외선 센서 값을 읽어서 배열에 하나씩 저장. 반복 횟수가 n번이니 O(n)
+
+qsort를 통해 배열을 정렬. 일반적으로 정렬은 O(n log n)의 시간이 걸림.
+
+index = (unsigned int)(n * position);  // O(1)
+ret_val = ir_val[index];               // O(1)
+
+if (verbose == 1) {
+    for (i = 0; i < n; i++) {          // 최대 n번 반복 → O(n)
+        Serial.print(ir_val[i]);
+ }
+}
+출력이 최대 n번이라 O(n)
+전체를 합쳐보면 O(n) + O(n log n) + O(n) 이라서 가장 큰 항인 O(n log n)이 시간복잡도.
+
+공간 복잡도 분석 :
+
+unsigned int ret_val;
+unsigned long start_time;
+unsigned int i, index;
+그냥 변수들이니 O(1)
+
+unsigned int *ir_val;
+ir_val = (unsigned int *)malloc(sizeof(unsigned int) * n);
+...
+free(ir_val);
+측정값 n개를 메모리에 저장 -> 필요한 메모리양이 n에 비례하므로 O(n)
+
+O(n)이 가장 크므로 공간 복잡도는 O(n)
+
+참고문헌:
+
+GeeksforGeeks. (2025, July 31). Time and Space Complexity. https://www.geeksforgeeks.org/dsa/time-complexity-and-space-complexity
