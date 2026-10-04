@@ -1,0 +1,264 @@
+import time
+
+
+# 1. 행렬 입력 기능
+def input_matrix():
+    n = int(input("정방행렬의 차수를 입력하세요: "))
+
+    mat = []
+
+    for i in range(n):
+        row = list(map(float, input(f"{i + 1}행: ").split()))
+        mat.append(row)
+
+    return mat
+
+
+# 2. 행렬식을 이용한 역행렬 계산 기능
+
+# 행렬식 계산
+def cal_determinant(mat):
+    n = len(mat)
+
+    if n == 1:
+        return mat[0][0]
+
+    if n == 2:
+        return mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0]
+
+    det = 0
+
+    for i in range(n):
+
+        minor = []
+
+        for j in range(1, n):
+            row = []
+
+            for k in range(n):
+                if k != i:
+                    row.append(mat[j][k])
+
+            minor.append(row)
+
+        det += ((-1) ** i) * mat[0][i] * cal_determinant(minor)
+
+    return det
+
+
+# 소행렬 계산
+def cal_minor(mat, row, col):
+    minor = []
+
+    for i in range(len(mat)):
+
+        if i == row:
+            continue
+
+        new_row = []
+
+        for j in range(len(mat)):
+
+            if j == col:
+                continue
+
+            new_row.append(mat[i][j])
+
+        minor.append(new_row)
+
+    return minor
+
+
+# 행렬식을 이용한 역행렬 계산
+def inverse_determinant(mat):
+    n = len(mat)
+
+    det = cal_determinant(mat)
+
+    if abs(det) < 1e-10:
+        return None
+
+    if n == 1:
+        return [[1 / det]]
+
+    cofactor = []
+
+    for i in range(n):
+        row = []
+        for j in range(n):
+            minor = cal_minor(mat, i, j)
+            minor_det = cal_determinant(minor)
+            value = ((-1) ** (i + j)) * minor_det
+
+            row.append(value)
+
+        cofactor.append(row)
+
+    #수반행렬
+    adjugate = []
+
+    for i in range(n):
+
+        row = []
+
+        for j in range(n):
+            row.append(cofactor[j][i])
+
+        adjugate.append(row)
+
+    #역행렬
+    inverse = []
+
+    for i in range(n):
+
+        row = []
+
+        for j in range(n):
+            row.append(adjugate[i][j] / det)
+
+        inverse.append(row)
+
+    return inverse
+
+
+# 3. 가우스-조던 소거법을 이용한 역행렬 계산 기능
+def gauss_jordan(mat):
+    n = len(mat)
+
+    #단위행렬
+    I_matrix = []
+
+    for i in range(n):
+        row = mat[i][:]
+        for j in range(n):
+            if i == j:
+                row.append(1)
+            else:
+                row.append(0)
+
+        I_matrix.append(row)
+
+    # 가우스-조던 소거법
+    for i in range(n):
+        if abs(I_matrix[i][i]) < 1e-10:
+            for j in range(i + 1, n):
+                if abs(I_matrix[j][i]) >= 1e-10:
+                    I_matrix[i], I_matrix[j] = I_matrix[j], I_matrix[i]
+                    break
+
+        if abs(I_matrix[i][i]) < 1e-10:
+            return None
+
+        pivot = I_matrix[i][i]
+
+        for j in range(2 * n):
+            I_matrix[i][j] /= pivot
+
+        for j in range(n):
+            if j == i:
+                continue
+
+            factor = I_matrix[j][i]
+
+            for k in range(2 * n):
+                I_matrix[j][k] -= factor * I_matrix[i][k]
+
+    inverse = []
+
+    for i in range(n):
+        inverse.append(I_matrix[i][n:])
+
+    return inverse
+
+
+# 행렬 출력
+def print_matrix(mat):
+
+    for row in mat:
+        print("[", end=" ")
+
+        for value in row:
+            print(f"{value:.6f}", end=" ")
+
+        print("]")
+
+
+# 4. 결과 출력 및 비교 기능
+def result(mat):
+
+    inverse1 = inverse_determinant(mat)
+    inverse2 = gauss_jordan(mat)
+
+    # 역행렬이 존재하지 않는 경우
+    if inverse1 is None or inverse2 is None:
+        print("\n역행렬이 존재하지 않는다.")
+        return
+
+    # 행렬식 방식 결과
+    print("\n행렬식으로 계산한 역행렬: ")
+    print_matrix(inverse1)
+
+    # 가우스-조던 방식 결과
+    print("\n가우스-조던 소거법으로 계산한 역행렬:")
+    print_matrix(inverse2)
+
+    # 두 결과 비교
+    same = True
+
+    for i in range(len(mat)):
+
+        for j in range(len(mat)):
+
+            if abs(inverse1[i][j] - inverse2[i][j]) > 1e-10:
+                same = False
+                break
+
+        if not same:
+            break
+
+    if same:
+        print("\n두 계산법의 결과가 동일합니다.")
+    else:
+        print("\n두 계산법의 결과가 다릅니다.")
+
+
+# 5. 추가기능: 두 계산법의 실행시간 측정
+def compare_time(mat):
+
+    # 행렬식 실행시간
+    start = time.perf_counter()
+    inverse_determinant(mat)
+    end = time.perf_counter()
+    determinant_time = end - start
+
+    # 가우스-조던 실행시간
+    start = time.perf_counter()
+    gauss_jordan(mat)
+    end = time.perf_counter()
+    gauss_jordan_time = end - start
+
+    # 결과 출력
+    print("\n")
+    print("추가기능: 두 계산법의 실행시간 측정")
+    print(f"행렬식의 실행시간      : {determinant_time:.10f}초")
+    print(f"가우스-조던의 실행시간 : {gauss_jordan_time:.10f}초")
+
+    if determinant_time < gauss_jordan_time:
+        print(": 행렬식 계산법이 더 빠르다")
+
+    elif determinant_time > gauss_jordan_time:
+        print(": 가우스-조던 계산법이 더 빠르다.")
+
+    else:
+        print(": 두 계산법의 실행시간이 동일하다.")
+
+
+# 6. 프로그램 실행
+def main():
+    mat = input_matrix()
+    result(mat)
+    compare_time(mat)
+
+
+if __name__ == "__main__":
+    main()
