@@ -1,0 +1,165 @@
+A = [1, 2, 3, 4, 5]
+N = len(A)
+
+# 1. 관계 행렬 입력 기능
+
+def input_matrix():
+    print(f"{N}x{N} 관계행렬을 행 단위로 입력하세요. (0 또는 1, 공백으로 구분)")
+    matrix = []
+    for i in range(N):
+        while True:
+            try:
+                row = list(map(int, input(f"  {i + 1}행: ").split()))
+            except ValueError:
+                print("  ! 정수(0 또는 1)만 입력하세요.")
+                continue
+            if len(row) != N or any(v not in (0, 1) for v in row):
+                print(f"  ! 0 또는 1 값을 정확히 {N}개 입력하세요.")
+                continue
+            matrix.append(row)
+            break
+    return matrix
+
+def print_matrix(matrix, title=""):
+    if title:
+        print(title)
+    print("      " + " ".join(str(a) for a in A))
+    for a, row in zip(A, matrix):
+        print(f"  {a} | " + " ".join(str(v) for v in row))
+
+def copy_matrix(matrix):
+    return [row[:] for row in matrix]
+
+# 2. 동치 관계 판별 기능
+
+def is_reflexive(m):
+    bad = [(A[i], A[i]) for i in range(N) if m[i][i] != 1]
+    return len(bad) == 0, bad
+
+def is_symmetric(m):
+    bad = [(A[i], A[j]) for i in range(N) for j in range(N)
+           if m[i][j] == 1 and m[j][i] != 1]
+    return len(bad) == 0, bad
+
+def is_transitive(m):
+    bad = [(A[i], A[j], A[k]) for i in range(N) for j in range(N) for k in range(N)
+           if m[i][j] == 1 and m[j][k] == 1 and m[i][k] != 1]
+    return len(bad) == 0, bad
+
+def show_property(name, ok, bad, label="반례", limit=3):
+    line = f"  {name}: {'O 성립' if ok else 'X 불성립'}"
+    if not ok:
+        more = " ..." if len(bad) > limit else ""
+        line += f"  ({label}: {bad[:limit]}{more})"
+    print(line)
+
+def check_properties(m):
+    ref, ref_bad = is_reflexive(m)
+    sym, sym_bad = is_symmetric(m)
+    tra, tra_bad = is_transitive(m)
+
+    show_property("반사 관계", ref, ref_bad)
+    show_property("대칭 관계", sym, sym_bad)
+    show_property("추이 관계", tra, tra_bad, label="반례 (a,b,c)")
+
+    if ref and sym and tra:
+        print("  => 이 관계는 동치 관계입니다.")
+    else:
+        print("  => 이 관계는 동치 관계가 아닙니다.")
+    return ref, sym, tra
+
+# 3번. 동치류 출력 기능
+
+def equivalence_class(m, x):
+    i = A.index(x)
+    return [A[j] for j in range(N) if m[i][j] == 1]
+
+def print_equivalence_classes(m):
+    print("  [각 원소의 동치류]")
+    classes = []
+    for x in A:
+        cls = equivalence_class(m, x)
+        print(f"  [{x}] = {{{', '.join(map(str, cls))}}}")
+        if cls not in classes:
+            classes.append(cls)
+    parts = ", ".join("{" + ", ".join(map(str, c)) + "}" for c in classes)
+    print(f"  [서로 다른 동치류 (집합 A의 분할)] {parts}  -> 총 {len(classes)}개")
+
+# 4번. 폐포 구현 기능
+
+def reflexive_closure(m):
+    r = copy_matrix(m)
+    for i in range(N):
+        r[i][i] = 1
+    return r
+
+def symmetric_closure(m):
+    r = copy_matrix(m)
+    for i in range(N):
+        for j in range(N):
+            if m[i][j] == 1 or m[j][i] == 1:
+                r[i][j] = r[j][i] = 1
+    return r
+
+def transitive_closure(m):
+    r = copy_matrix(m)
+    for k in range(N):
+        for i in range(N):
+            for j in range(N):
+                if r[i][k] == 1 and r[k][j] == 1:
+                    r[i][j] = 1
+    return r
+
+def apply_closure_and_recheck(m, name, closure_func):
+    print(f"\n----- {name} 폐포 변환 -----")
+    print_matrix(m, "[변환 전]")
+    closed = closure_func(m)
+    print_matrix(closed, f"[{name} 폐포 변환 후]")
+    print("[변환 후 동치 관계 재판별]")
+    ref, sym, tra = check_properties(closed)
+    if ref and sym and tra:
+        print_equivalence_classes(closed)
+    return closed
+
+# 5번. 추가 기능
+
+def equivalence_closure(m):
+    return transitive_closure(symmetric_closure(reflexive_closure(m)))
+
+def main():
+    # 1번. 관계 행렬 입력
+    matrix = input_matrix()
+    print()
+    print_matrix(matrix, "[입력된 관계행렬]")
+
+    # 2번. 동치 관계 판별
+    print("\n[동치 관계 판별]")
+    ref, sym, tra = check_properties(matrix)
+
+    # 3번, 동치 관계이면 동치류 출력 후 종료
+    if ref and sym and tra:
+        print("\n[동치류 출력]")
+        print_equivalence_classes(matrix)
+        return
+
+    # 4번, 동치 관계가 아니면, 성립하지 않는 성질마다 해당 폐포로 변환
+    print("\n[폐포 변환] 성립하지 않는 성질을 각각의 폐포로 변환합니다.")
+    if not ref:
+        apply_closure_and_recheck(matrix, "반사", reflexive_closure)
+    if not sym:
+        apply_closure_and_recheck(matrix, "대칭", symmetric_closure)
+    if not tra:
+        apply_closure_and_recheck(matrix, "추이", transitive_closure)
+
+    # 5번, 추가 기능
+    print("\n----- [추가 기능] 동치 폐포 (반사 -> 대칭 -> 추이 순서로 적용) -----")
+    print_matrix(matrix, "[변환 전]")
+    eq = equivalence_closure(matrix)
+    print_matrix(eq, "[동치 폐포 변환 후]")
+    print("[변환 후 동치 관계 재판별]")
+    check_properties(eq)
+    print_equivalence_classes(eq)
+
+
+if __name__ == "__main__":
+    main()
